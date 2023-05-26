@@ -57,6 +57,20 @@ services:
       - backend
     restart: always
 
+  asynqmon:
+    image: hibiken/asynqmon:latest
+    container_name: asynqmon
+    ports:
+      - 8980:8080
+    command:
+      - '--redis-addr=redis:6379'
+    #  - '--redis-password=G62m50oigInC30sf'
+    restart: always
+    networks:
+      - looklook_net
+    depends_on:
+      - redis
+
   redis:
     build:
       context: ./redis
@@ -64,6 +78,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${DATA_PATH_HOST}/redis:/data                 # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上存放 Redis 数据的目录挂载到容器中 /data 目录
+    #command: "redis-server --requirepass G62m50oigInC30sf  --appendonly yes"
     ports:
       - "${REDIS_PORT}:6379"                          # 设置容器6379端口映射指定宿主机端口
     networks:
@@ -77,7 +92,7 @@ services:
       - "${RABBIT_PORT}:5672"   
       - "${RABBIT_UI_PORT}:15672"   
     volumes:
-        - ${DATA_PATH_HOST}/rabbit:/var/lib/rabbitmq/
+        - ${DATA_PATH_HOST}/rabbit/mnesia:/var/lib/rabbitmq
         - ${DATA_PATH_HOST}/log/rabbit:/var/log/rabbitmq
     networks:
         - backend
