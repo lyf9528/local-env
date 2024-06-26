@@ -30,6 +30,7 @@ services:
   etcd: # 自定义容器名称
     build:
       context: ./etcd # 指定构建使用的 Dockerfile 文件
+    container_name: etcd
     environment:
       - TZ=${TZ}
       - ALLOW_NONE_AUTHENTICATION=yes
@@ -43,6 +44,7 @@ services:
   mysql:
     build:
       context: ./mysql
+    container_name: mysql
     environment:
       - TZ=${TZ}
       - MYSQL_USER=${MYSQL_USERNAME} # 设置 Mysql 用户名称
@@ -57,7 +59,7 @@ services:
     restart: always
 
   asynqmon:
-    image: hibiken/asynqmon:latest
+    image: ./asynqmon
     container_name: asynqmon
     ports:
       - 8980:8080
@@ -73,6 +75,7 @@ services:
   redis:
     build:
       context: ./redis
+    container_name: redis
     environment:
       - TZ=${TZ}
     volumes:
@@ -87,6 +90,7 @@ services:
   rabbitmq:
     build:
       context: ./rabbitmq
+    container_name: rabbitmq
     ports:
       - "${RABBIT_PORT}:5672"
       - "${RABBIT_UI_PORT}:15672"
@@ -100,6 +104,7 @@ services:
   mysql-manage:
     build:
       context: ./mysql-manage
+    container_name: mysql-manage
     environment:
       - TZ=${TZ}
       - PMA_ARBITRARY=1
@@ -119,6 +124,7 @@ services:
   redis-manage:
     build:
       context: ./redis-manage
+    container_name: redis-manage
     environment:
       - TZ=${TZ}
       - ADMIN_USER=${REDIS_MANAGE_USERNAME} # 设置 Redis 可视化管理的用户名称
@@ -136,6 +142,7 @@ services:
   prometheus:
     build:
       context: ./prometheus
+    container_name: prometheus
     environment:
       - TZ=${TZ}
     volumes:
@@ -149,6 +156,7 @@ services:
   grafana:
     build:
       context: ./grafana
+    container_name: grafana
     environment:
       - TZ=${TZ}
     ports:
@@ -160,17 +168,81 @@ services:
   jaeger:
     build:
       context: ./jaeger
+    container_name: jaeger
     environment:
       - TZ=${TZ}
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - LOG_LEVEL=debug
     ports:
       - "${JAEGER_PORT}:16686" # 设置容器16686端口映射指定宿主机端口，用于宿主机访问可视化web
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "14268:14268"
+      - "9411:9411"
     networks:
       - backend
     restart: always
 
+  elasticsearch:
+    image: ./elasticsearch
+    container_name: elasticsearch
+    user: root
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH_HOST}/elasticsearch:/usr/share/elasticsearch
+    ports:
+      - ${ES_HTTP_PORT}:9200
+      - ${ES_TRANS_PORT}:9300
+    networks:
+      - backend
+    restart: always
+
+  kibana:
+    image: ./kibana
+    container_name: kibana
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${KIBANA_PORT}:5601"
+    networks:
+      - backend
+    restart: always
+
+  zookeeper:
+    image: ./zookeeper
+    container_name: zookeeper
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${ZOOKEEPER_PORT}:2181"
+    networks:
+      - backend
+    restart: always
+
+  kafka:
+    image: ./kafka
+    container_name: kafka
+    environment:
+      - TZ=${TZ}
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+    ports:
+      - "${KAFKA_PORT}:9092"
+    restart: always
+    networks:
+      - backend
+    depends_on:
+      - zookeeper
+
   dtm:
     build:
       context: ./dtm
+    container_name: dtm
     environment:
       - TZ=${TZ}
     entrypoint:
@@ -181,6 +253,30 @@ services:
     ports:
       - "${DTM_HTTP_PORT}:36789"
       - "${DTM_GRPC_PORT}:36790"
+    networks:
+      - backend
+    restart: always
+
+  consul:
+    image: ./consul
+    container_name: consul
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${CONSUL_HTTP_PORT}:8500"
+      - "${CONSUL_GRPC_PORT}:8502"
+    networks:
+      - backend
+    restart: always
+
+  nacos:
+    image: ./nacos
+    container_name: nacos
+    environment:
+      - TZ=${TZ}
+      - MODE=standalone
+    ports:
+      - "${NACOS_PORT}:8848"
     networks:
       - backend
     restart: always
