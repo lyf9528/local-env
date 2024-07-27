@@ -2,13 +2,14 @@
 networks:
   backend:
     driver: ${NETWORKS_DRIVER}
-  fronted:
+  frontend:
     driver: ${NETWORKS_DRIVER}
 # 服务容器配置
 services:
   golang: # 自定义容器名称
     build:
       context: ./golang # 指定构建使用的 Dockerfile 文件
+    container_name: golang
     environment: # 设置环境变量
       - TZ=${TZ}
     volumes: # 设置挂载目录
@@ -29,9 +30,23 @@ services:
     environment:
       - TZ=${TZ}
       - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      #- ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379 容器内开发使用该配置 windows环境下该参数需要注释或修改
     ports: # 设置端口映射
       - "${ETCD_PORT}:2379"
+    networks:
+      - backend
+    restart: always
+
+  etcd-manage:
+    build:
+      context: ./etcd-manage
+    container_name: etcd-manage
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${ETCD_MANAGE_PORT}:8080" # 设置容器8080端口映射指定宿主机端口，用于宿主机访问可视化web
+    depends_on: # 依赖容器
+      - etcd # 在 etcd 服务容器启动后启动
     networks:
       - backend
     restart: always
@@ -289,4 +304,4 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./data/nginx/log:/var/log/nginx
     networks:
-      - fronted
+      - frontend
